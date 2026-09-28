@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2:1b"
     rate_limit_requests: int = Field(default=10, ge=1)
     rate_limit_window_seconds: int = Field(default=60, ge=1)
+    trust_proxy_headers: bool = False
     log_level: str = "INFO"
     triage_cache_ttl_seconds: int = 86_400
     stats_cache_ttl_seconds: int = 30

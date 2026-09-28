@@ -1,7 +1,10 @@
 from uuid import uuid4
 
+import pytest
+
 from app.config import Settings
 from app.providers.triage.base import ProviderError, RetryableProviderError
+from app.providers.triage.llm import LLMTriage
 from app.providers.triage.simulated import SimulatedTriage
 from app.services.triage import TriageService
 
@@ -43,6 +46,41 @@ def test_provider_failure_falls_back_and_records_outcome(redis_client) -> None:
     assert decision.fallback is True
     assert decision.provider == "rules:fallback"
     assert service.outcomes()[0].fallback is True
+
+
+def test_provider_recovers_after_fallback(redis_client) -> None:
+    class RecoveringProvider:
+        name = "recovering"
+        calls = 0
+
+        def triage(self, text: str, location: str):
+            self.calls += 1
+            if self.calls == 1:
+                raise ProviderError("temporary failure")
+            return SimulatedTriage().triage(text, location)
+
+    provider = RecoveringProvider()
+    service = TriageService(provider, redis_client, settings())
+    first = service.triage(uuid4(), "Water pipe leaking near houses", "Street 2")
+    second = service.triage(uuid4(), "Water pipe leaking near houses", "Street 2")
+    assert first.fallback is True
+    assert second.fallback is False
+    assert provider.calls == 2
+
+
+def test_empty_llm_choices_raise_provider_error(monkeypatch) -> None:
+    class EmptyResponse:
+        status_code = 200
+
+        def json(self):
+            return {"choices": []}
+
+    monkeypatch.setattr(
+        "app.providers.triage.llm.httpx.post", lambda *args, **kwargs: EmptyResponse()
+    )
+    provider = LLMTriage(Settings(llm_api_key="test"))
+    with pytest.raises(ProviderError, match="invalid structured output"):
+        provider.triage("Water pipe is leaking", "Street 2")
 
 
 def test_retryable_error_is_retried_once(redis_client, monkeypatch) -> None:

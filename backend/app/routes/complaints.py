@@ -1,8 +1,10 @@
+from ipaddress import ip_address
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 
+from app.config import get_settings
 from app.dependencies import get_complaint_service, get_rate_limiter
 from app.domain import (
     Category,
@@ -28,6 +30,12 @@ def create_complaint(
     limiter: Annotated[RateLimiter, Depends(get_rate_limiter)],
 ) -> ComplaintRead:
     client_ip = request.client.host if request.client else "unknown"
+    if get_settings().trust_proxy_headers:
+        forwarded_ip = request.headers.get("X-Real-IP", "")
+        try:
+            client_ip = str(ip_address(forwarded_ip))
+        except ValueError:
+            pass
     try:
         limiter.check(client_ip)
     except RateLimitExceededError as exc:

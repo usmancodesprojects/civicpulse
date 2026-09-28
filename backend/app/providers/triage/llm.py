@@ -48,5 +48,5 @@ class LLMTriage:
         try:
             content = response.json()["choices"][0]["message"]["content"]
             return TriageResult.model_validate(json.loads(content))
-        except (KeyError, TypeError, json.JSONDecodeError, ValidationError) as exc:
+        except (IndexError, KeyError, TypeError, json.JSONDecodeError, ValidationError) as exc:
             raise ProviderError("LLM returned invalid structured output") from exc
