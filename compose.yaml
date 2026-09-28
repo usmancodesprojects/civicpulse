@@ -37,6 +37,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
       RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-10}
       RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      TRUST_PROXY_HEADERS: "true"
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
