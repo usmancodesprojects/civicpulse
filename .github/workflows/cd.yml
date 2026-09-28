@@ -1,0 +1,101 @@
+name: CD
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -e ".[dev]" && pytest
+        working-directory: backend
+        env:
+          TRIAGE_PROVIDER: simulated
+          DATABASE_URL: "sqlite+pysqlite:///:memory:"
+      - run: python ../scripts/check_frontend_contract.py
+        working-directory: backend
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: frontend/package-lock.json }
+      - run: npm ci && npm run lint && npm run typecheck && npm test
+        working-directory: frontend
+
+  build-push:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        component: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.component }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/civicpulse-${{ matrix.component }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/civicpulse-${{ matrix.component }}:latest
+      - name: Emit SBOM
+        uses: anchore/sbom-action@v0.17.2
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/civicpulse-${{ matrix.component }}@${{ steps.build.outputs.digest }}
+          artifact-name: ${{ matrix.component }}-sbom.spdx.json
+
+  deploy-k8s:
+    runs-on: ubuntu-latest
+    needs: build-push
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: helm/kind-action@v1.10.0
+        with: { cluster_name: civicpulse }
+      - name: Load immutable images
+        run: |
+          docker pull ghcr.io/${{ github.repository_owner }}/civicpulse-backend:${{ github.sha }}
+          docker pull ghcr.io/${{ github.repository_owner }}/civicpulse-frontend:${{ github.sha }}
+          kind load docker-image --name civicpulse ghcr.io/${{ github.repository_owner }}/civicpulse-backend:${{ github.sha }}
+          kind load docker-image --name civicpulse ghcr.io/${{ github.repository_owner }}/civicpulse-frontend:${{ github.sha }}
+      - name: Install metrics server and VPA
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+          kubectl patch deployment metrics-server -n kube-system --type=json -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]'
+          git clone --depth 1 --branch vpa-release-1.8 https://github.com/kubernetes/autoscaler.git /tmp/autoscaler
+          /tmp/autoscaler/vertical-pod-autoscaler/hack/vpa-up.sh
+      - name: Deploy by commit SHA
+        env:
+          DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          cd k8s/overlays/prod
+          sed -i "s/REPLACE_OWNER/${{ github.repository_owner }}/g; s/REPLACE_WITH_COMMIT_SHA/${{ github.sha }}/g" kustomization.yaml
+          kubectl apply -f ../../base/namespace.yaml
+          kubectl create secret generic civicpulse-secrets -n civicpulse --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" --from-literal=DATABASE_URL="postgresql+psycopg://civicpulse:$DB_PASSWORD@postgres:5432/civicpulse" --from-literal=LLM_API_KEY="$LLM_API_KEY" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl apply -k .
+      - name: Verify rollout and smoke test
+        run: |
+          kubectl rollout status deployment/backend -n civicpulse --timeout=240s
+          kubectl rollout status deployment/frontend -n civicpulse --timeout=120s
+          kubectl port-forward -n civicpulse service/frontend 8080:8080 &
+          for i in {1..20}; do curl -fsS http://127.0.0.1:8080/ && break; sleep 2; done
+          kubectl get hpa -n civicpulse
+
