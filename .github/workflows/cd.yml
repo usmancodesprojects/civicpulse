@@ -96,6 +96,11 @@ jobs:
           kubectl rollout status deployment/backend -n civicpulse --timeout=240s
           kubectl rollout status deployment/frontend -n civicpulse --timeout=120s
           kubectl port-forward -n civicpulse service/frontend 8080:8080 &
-          for i in {1..20}; do curl -fsS http://127.0.0.1:8080/ && break; sleep 2; done
+          ready=0
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8080/; then ready=1; break; fi
+            sleep 2
+          done
+          test "$ready" -eq 1
           kubectl get hpa -n civicpulse
 
