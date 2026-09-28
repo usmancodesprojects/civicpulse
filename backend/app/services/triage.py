@@ -72,17 +72,18 @@ class TriageService:
         if fallback:
             TRIAGE_FALLBACKS.labels(self.provider.name).inc()
         decision = TriageDecision(result, provider_name, latency_ms, fallback)
-        self.redis.setex(
-            cache_key,
-            self.settings.triage_cache_ttl_seconds,
-            json.dumps(
-                {
-                    "result": result.model_dump(mode="json"),
-                    "provider": provider_name,
-                    "fallback": fallback,
-                }
-            ),
-        )
+        if not fallback:
+            self.redis.setex(
+                cache_key,
+                self.settings.triage_cache_ttl_seconds,
+                json.dumps(
+                    {
+                        "result": result.model_dump(mode="json"),
+                        "provider": provider_name,
+                        "fallback": False,
+                    }
+                ),
+            )
         self._record(decision)
         return decision
 

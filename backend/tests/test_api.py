@@ -80,6 +80,34 @@ def test_post_contract_returns_201() -> None:
         assert response.json()["triaged_by"] == "simulated"
 
 
+def test_trusted_proxy_keeps_client_rate_limit_buckets_separate(monkeypatch) -> None:
+    from app.config import Settings
+
+    identities: list[str] = []
+
+    class RecordingLimiter:
+        def check(self, client_ip: str) -> None:
+            identities.append(client_ip)
+
+    monkeypatch.setattr(
+        "app.routes.complaints.get_settings", lambda: Settings(trust_proxy_headers=True)
+    )
+    app.dependency_overrides[get_complaint_service] = lambda: FakeComplaintService()
+    app.dependency_overrides[get_rate_limiter] = lambda: RecordingLimiter()
+    try:
+        with TestClient(app) as test_client:
+            for address in ("203.0.113.10", "203.0.113.11"):
+                response = test_client.post(
+                    "/api/complaints",
+                    headers={"X-Real-IP": address},
+                    json={"text": "Water pipe flooding road", "location": "Street 1"},
+                )
+                assert response.status_code == 201
+    finally:
+        app.dependency_overrides.clear()
+    assert identities == ["203.0.113.10", "203.0.113.11"]
+
+
 def test_validation_returns_400_field_errors() -> None:
     with client() as test_client:
         response = test_client.post("/api/complaints", json={"text": "short", "location": "x"})
