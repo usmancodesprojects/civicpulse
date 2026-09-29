@@ -39,12 +39,16 @@ for pattern, label in [
     if re.search(pattern, tracked_text, re.MULTILINE):
         fail(label)
 
-prod = (ROOT / "compose.prod.yaml").read_text(encoding="utf-8")
-if "build:" in prod:
-    fail("compose.prod.yaml contains build:")
-if re.search(r"(?:postgres|redis):[\s\S]{0,500}?ports:", prod):
-    fail("production database/cache may publish a port")
-if "internal: true" not in (ROOT / "compose.yaml").read_text(encoding="utf-8"):
+prod_path = ROOT / "compose.prod.yaml"
+if prod_path.is_file():
+    prod = prod_path.read_text(encoding="utf-8")
+    if "build:" in prod:
+        fail("compose.prod.yaml contains build:")
+    if re.search(r"(?:postgres|redis):[\s\S]{0,500}?ports:", prod):
+        fail("production database/cache may publish a port")
+
+compose_path = ROOT / "compose.yaml"
+if compose_path.is_file() and "internal: true" not in compose_path.read_text(encoding="utf-8"):
     fail("internal Docker network is not isolated")
 
 if failures:
