@@ -8,7 +8,7 @@ First, a laptop may have any Python or Node version; the backend and frontend Do
 
 ## 2. CI/CD maturity ladder
 
-The intended CI/CD pipeline is continuous delivery: PRs are designed to be linted, typed, unit-tested, image-built, scanned, manifest-validated, and integration-tested; a merge to main is designed to build immutable images and deploy them to an ephemeral Kubernetes environment. A successful integrated run remains outstanding while the dependent branches are unmerged. Publishing is gated at `.github/workflows/cd.yml:32` and deployment at `.github/workflows/cd.yml:60`. It is not continuous deployment to a long-lived production environment because the target is deliberately ephemeral. The next rung is an environment promotion/GitOps controller, which would make reviewed Git desired state continuously reconciled and auditable.
+The intended CI/CD pipeline is continuous delivery: PRs are designed to be linted, typed, unit-tested, image-built, scanned, manifest-validated, and integration-tested; a merge to main is designed to build immutable images and deploy them to an ephemeral Kubernetes environment. A temporary combined branch passed all seven CI jobs in PR #13; the integrated `dev` run remains outstanding while the dependent branches are unmerged. Publishing is gated at `.github/workflows/cd.yml:32` and deployment at `.github/workflows/cd.yml:60`. It is not continuous deployment to a long-lived production environment because the target is deliberately ephemeral. The next rung is an environment promotion/GitOps controller, which would make reviewed Git desired state continuously reconciled and auditable.
 
 ## 3. Build once, deploy many
 
