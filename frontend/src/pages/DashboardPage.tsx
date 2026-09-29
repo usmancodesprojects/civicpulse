@@ -12,13 +12,19 @@ export function DashboardPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<Filters>({ category: "", priority: "", status: "" });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<string | null>(null);
   const requestNumber = useRef(0);
+  const pendingIdRef = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const currentRequest = ++requestNumber.current;
     const query = new URLSearchParams({ page: String(page), page_size: "10" });
     Object.entries(filters).forEach(([key, value]) => value && query.set(key, value));
     setError("");
+    setLoading(true);
+    setItems([]);
+    setTotal(0);
     try {
       const result = await api.listComplaints(query);
       if (currentRequest !== requestNumber.current) return;
@@ -27,18 +33,26 @@ export function DashboardPage() {
     } catch (caught) {
       if (currentRequest !== requestNumber.current) return;
       setError(caught instanceof Error ? caught.message : "Could not load complaints");
+    } finally {
+      if (currentRequest === requestNumber.current) setLoading(false);
     }
   }, [filters, page]);
 
   useEffect(() => { void load(); }, [load]);
 
   const transition = async (id: string, status: Status) => {
+    if (pendingIdRef.current) return;
+    pendingIdRef.current = id;
+    setPendingId(id);
     setError("");
     try {
       await api.updateStatus(id, status);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Status update failed");
+    } finally {
+      pendingIdRef.current = null;
+      setPendingId(null);
     }
   };
 
@@ -62,6 +76,8 @@ export function DashboardPage() {
         </select>
       </div>
       {error && <p role="alert" className="alert">{error}</p>}
+      {loading && <p role="status">Loading complaints...</p>}
+      {!loading && !error && items.length === 0 && <p role="status">No complaints match these filters.</p>}
       <div className="complaint-list">
         {items.map((item) => (
           <article className="complaint-card" key={item.id}>
@@ -71,13 +87,13 @@ export function DashboardPage() {
               <p>{item.text}</p><small>{item.location} - {new Date(item.created_at).toLocaleString()}</small>
             </div>
             <div className="actions">
-              {item.allowed_transitions.map((target) => <button className="secondary" key={target} onClick={() => void transition(item.id, target)}>Mark {target.replace("_", " ")}</button>)}
+              {item.allowed_transitions.map((target) => <button className="secondary" key={target} disabled={pendingId !== null} onClick={() => void transition(item.id, target)}>{pendingId === item.id ? "Updating..." : `Mark ${target.replace("_", " ")}`}</button>)}
               {!item.allowed_transitions.length && <span>Terminal</span>}
             </div>
           </article>
         ))}
       </div>
-      <div className="pagination"><button className="secondary" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>Page {page}</span><button className="secondary" disabled={page * 10 >= total} onClick={() => setPage((value) => value + 1)}>Next</button></div>
+      <div className="pagination"><button className="secondary" disabled={loading || page === 1} onClick={() => setPage((value) => value - 1)}>Previous</button><span>Page {page}</span><button className="secondary" disabled={loading || page * 10 >= total} onClick={() => setPage((value) => value + 1)}>Next</button></div>
     </section>
   );
 }

@@ -88,6 +88,31 @@ describe("CivicPulse", () => {
     expect(screen.getByRole("button", { name: "Mark in progress" })).toBeInTheDocument();
   });
 
+  it("shows an empty dashboard after loading finishes", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ items: [], total: 0, page: 1, page_size: 10 }), { status: 200 }));
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    expect(await screen.findByText("No complaints match these filters.")).toBeInTheDocument();
+    expect(screen.queryByText("Loading complaints...")).not.toBeInTheDocument();
+  });
+
+  it("prevents a duplicate status update while one is pending", async () => {
+    let finishUpdate: (response: Response) => void = () => undefined;
+    const update = new Promise<Response>((resolve) => { finishUpdate = resolve; });
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ items: [complaint], total: 1, page: 1, page_size: 10 }), { status: 200 }));
+    fetchMock.mockReturnValueOnce(update);
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ items: [{ ...complaint, status: "in_progress", allowed_transitions: ["resolved"] }], total: 1, page: 1, page_size: 10 }), { status: 200 }));
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Mark in progress" }));
+    expect(screen.getByRole("button", { name: "Updating..." })).toBeDisabled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    await act(async () => { finishUpdate(new Response(JSON.stringify(complaint), { status: 200 })); await update; });
+    expect(await screen.findByRole("button", { name: "Mark resolved" })).toBeEnabled();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("keeps the newest dashboard filter result when an older request finishes later", async () => {
     let finishFirst: (response: Response) => void = () => undefined;
     const firstRequest = new Promise<Response>((resolve) => { finishFirst = resolve; });
