@@ -106,7 +106,8 @@ describe("CivicPulse", () => {
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
     await userEvent.click(await screen.findByRole("button", { name: "Mark in progress" }));
-    expect(screen.getByRole("button", { name: "Updating..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Mark in progress" })).toBeDisabled();
+    expect(screen.getByText("Updating...")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     await act(async () => { finishUpdate(new Response(JSON.stringify(complaint), { status: 200 })); await update; });
     expect(await screen.findByRole("button", { name: "Mark resolved" })).toBeEnabled();
@@ -149,5 +150,17 @@ describe("CivicPulse", () => {
     await userEvent.click(screen.getByRole("button", { name: "Stats" }));
     await waitFor(() => expect(screen.getByText("Cache HIT")).toBeInTheDocument());
     expect(screen.getByText("Total complaints")).toBeInTheDocument();
+  });
+
+  it("can retry statistics after a transient failure", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    fetchMock.mockRejectedValueOnce(new Error("Network unavailable"));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ by_category: {}, by_priority: {}, total: 0 }), { status: 200, headers: { "X-Cache": "MISS" } }));
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Stats" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Network unavailable");
+    await userEvent.click(screen.getByRole("button", { name: "Retry statistics" }));
+    expect(await screen.findByText("Cache MISS")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

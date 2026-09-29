@@ -87,7 +87,8 @@ export function DashboardPage() {
               <p>{item.text}</p><small>{item.location} - {new Date(item.created_at).toLocaleString()}</small>
             </div>
             <div className="actions">
-              {item.allowed_transitions.map((target) => <button className="secondary" key={target} disabled={pendingId !== null} onClick={() => void transition(item.id, target)}>{pendingId === item.id ? "Updating..." : `Mark ${target.replace("_", " ")}`}</button>)}
+              {item.allowed_transitions.map((target) => <button className="secondary" key={target} disabled={pendingId !== null} onClick={() => void transition(item.id, target)}>Mark {target.replace("_", " ")}</button>)}
+              {pendingId === item.id && <span role="status">Updating...</span>}
               {!item.allowed_transitions.length && <span>Terminal</span>}
             </div>
           </article>
