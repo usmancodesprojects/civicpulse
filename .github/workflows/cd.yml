@@ -89,6 +89,9 @@ jobs:
           DB_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
         run: |
+          if [ -z "${DB_PASSWORD:-}" ]; then
+            DB_PASSWORD="$(openssl rand -hex 24)"
+          fi
           cd k8s/overlays/prod
           sed -i "s/REPLACE_OWNER/${{ github.repository_owner }}/g; s/REPLACE_WITH_COMMIT_SHA/${{ github.sha }}/g" kustomization.yaml
           kubectl apply -f ../../base/namespace.yaml
@@ -106,4 +109,12 @@ jobs:
           done
           test "$ready" -eq 1
           kubectl get hpa -n civicpulse
+      - name: Collect Kubernetes diagnostics
+        if: failure()
+        run: |
+          kubectl get pods -n civicpulse -o wide
+          kubectl describe pods -n civicpulse
+          kubectl logs -n civicpulse -l app=backend --all-containers --tail=200 --prefix || true
+          kubectl logs -n civicpulse -l app=postgres --all-containers --tail=200 --prefix || true
+          kubectl get events -n civicpulse --sort-by=.lastTimestamp
 
