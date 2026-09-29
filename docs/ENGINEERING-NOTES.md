@@ -4,7 +4,7 @@ These answers refer to the submitted code, not generic platform behavior. Re-che
 
 ## 1. Laptop versus CI runner
 
-First, a laptop may have any Python or Node version; the backend and frontend Dockerfiles freeze Python 3.12.8 and Node 22.13.1 at `backend/Dockerfile:1` and `frontend/Dockerfile:1`. Second, developer networks and hostnames differ; `frontend/nginx.conf:18` fixes in-container routing to Compose/Kubernetes DNS name `backend`, while the browser uses a relative path. Third, local state survives but CI is blank; `compose.yaml:74-85` mounts Redis AOF on `redisdata`, and `backend/app/seed.py` derives stable UUID5 identifiers so repeated startup does not duplicate the 32 examples.
+First, a laptop may have any Python or Node version; the backend and frontend Dockerfiles freeze Python 3.12.14 and Node 22.13.1 at `backend/Dockerfile:1` and `frontend/Dockerfile:1`. Second, developer networks and hostnames differ; `frontend/nginx.conf:18` fixes in-container routing to Compose/Kubernetes DNS name `backend`, while the browser uses a relative path. Third, local state survives but CI is blank; `compose.yaml:74-85` mounts Redis AOF on `redisdata`, and `backend/app/seed.py` derives stable UUID5 identifiers so repeated startup does not duplicate the 32 examples.
 
 ## 2. CI/CD maturity ladder
 
