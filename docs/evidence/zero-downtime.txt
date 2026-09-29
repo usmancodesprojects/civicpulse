@@ -1,0 +1,27 @@
+=== CONTINUOUS CLIENT RESULTS ===
+Started: 2026-09-28T16:17:04.9442261+05:00
+
+Finished: 2026-09-28T16:20:04.9703965+05:00
+Total requests: 1212
+Successful requests: 1212
+Failed requests: 0
+
+=== KUBERNETES ROLLOUT RESULTS ===
+Rollout started: 2026-09-28T16:17:14.5418915+05:00
+deployment.apps/backend image updated
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+NAME                       READY   STATUS        RESTARTS      AGE   IP            NODE                       NOMINATED NODE   READINESS GATES
+backend-65545955b9-44cbn   1/1     Terminating   0             10m   10.244.0.34   civicpulse-control-plane   <none>           <none>
+backend-b8d8d9784-2wcjq    1/1     Running       0             59s   10.244.0.36   civicpulse-control-plane   <none>           <none>
+backend-b8d8d9784-97m6v    1/1     Running       0             29s   10.244.0.37   civicpulse-control-plane   <none>           <none>
+frontend-5cfddb5dc-mwdhc   1/1     Running       0             51m   10.244.0.15   civicpulse-control-plane   <none>           <none>
+frontend-5cfddb5dc-xlxdq   1/1     Running       0             51m   10.244.0.18   civicpulse-control-plane   <none>           <none>
+postgres-0                 1/1     Running       1 (23m ago)   30m   10.244.0.24   civicpulse-control-plane   <none>           <none>
+redis-656966cdf8-dl5mp     1/1     Running       0             51m   10.244.0.16   civicpulse-control-plane   <none>           <none>
+Rollout finished: 2026-09-28T16:18:13.5491382+05:00
