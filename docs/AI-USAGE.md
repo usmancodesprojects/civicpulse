@@ -1,14 +1,26 @@
 # AI usage disclosure
 
-OpenAI Codex assisted with the initial CivicPulse application, tests, Docker and Kubernetes files, CI workflows, and documentation. The team is responsible for reviewing, testing, and explaining the submitted work.
+OpenAI Codex assisted both Usman and Nafay with implementation, debugging, tests, deployment configuration, CI workflows, documentation, and verification. Both team members reviewed the generated changes, ran the recorded checks, resolved failures, and remain responsible for understanding and explaining the submitted work.
 
-## Verified work to date
+## Usman's verified work
 
-- Nafay reviewed the backend provider and triage service, reproduced three failure cases, and added fixes for fallback caching, empty LLM choices, and trusted proxy client identity in PR #5. Ruff, mypy, and 29 backend tests passed locally after the fixes, with 82.72% coverage.
-- Nafay reviewed the Docker/Compose configuration in PR #4, corrected proxy trust configuration, and verified two distinct rate-limit buckets through the nginx-backed Compose stack.
-- Nafay reviewed PR #6, reproduced a deployment smoke-check false positive, added an explicit failure assertion, and wired the submission checker into CI. A temporary combined branch passed all seven CI jobs in PR #13, and Nafay rebuilt and verified the local Compose stack as recorded in `docs/evidence/local-compose-verification.md`. PR #6 itself remains red because its dependent frontend, documentation, and Kubernetes branches are still outside `dev`.
-- Nafay added frontend PR #8 and Kubernetes draft PR #10. Eight frontend component tests and both Kustomize overlay renders passed locally. Live Kubernetes rollout and scaling evidence for PR #10 remains to be verified.
+- Usman implemented the backend foundation and complaint API, including persistence, triage services, health endpoints, migrations, and automated tests in PR #5.
+- Usman added the backend and frontend container images, development and production Compose definitions, startup helpers, and persistence evidence in PR #4.
+- Usman implemented the CI/CD and release workflows in PR #6, including linting, typing, tests, coverage, manifest validation, image builds, integration checks, vulnerability scanning, and submission-readiness gates.
+- Usman integrated and reviewed the feature branches, reviewed and approved Nafay's frontend, Kubernetes, documentation, and reliability changes, and merged the approved PRs through `dev` without committing directly to `main`.
+- Usman normalized contributor identities with `.mailmap`, documented the deliberate `.gitignore` merge conflict and its resolution, expanded the submission checker, and recorded the final backend, frontend, Compose, and Kubernetes verification results.
 
-## Outstanding verification
+## Nafay's verified work
 
-Before submission, rerun the full CI pipeline on the integrated `dev` branch, verify the live Kubernetes deployment and scaling behavior, obtain the required partner reviews, and capture final PR and merge evidence. This file should be updated with those results only after they occur.
+- Nafay reviewed the backend provider and triage service, reproduced failure cases, and fixed fallback caching, empty LLM choices, and trusted proxy client identity in PR #5.
+- Nafay reviewed the Docker/Compose configuration in PR #4, corrected proxy trust configuration, and verified distinct rate-limit buckets through the nginx-backed Compose stack.
+- Nafay reviewed PR #6, fixed the deployment smoke-check false positive, wired the submission checker into CI, and verified the integrated workflow before approval.
+- Nafay implemented and tested the frontend in PR #8, the Kubernetes deployment and autoscaling configuration in PR #10, and the repository documentation and captured evidence in PR #12.
+- Nafay hardened AI triage reliability in PR #16 with shared structured-output validation, bounded retries, a Redis-backed circuit breaker, corrupt-cache recovery, and focused tests.
+
+## Final verification
+
+- The integrated backend suite passes 37 tests with 84.27% coverage; Ruff and mypy pass.
+- Frontend linting, TypeScript checking, 12 component tests, coverage, and the production build pass.
+- Docker Compose validation and both Kubernetes overlays pass, and the repository contains the captured persistence, rollout, HPA, VPA, rollback, and zero-downtime evidence.
+- The final `dev` to `main` PR #15 received partner approval, passed all 14 GitHub checks, and merged into protected `main`.
