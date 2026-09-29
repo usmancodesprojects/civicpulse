@@ -1,0 +1,3 @@
+REPOSITORY            TAG                SIZE
+civicpulse-backend    latest             303MB
+civicpulse-frontend   latest             72.4MB

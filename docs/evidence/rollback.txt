@@ -1,0 +1,26 @@
+Imperative rollback started: 2026-09-28T16:21:21.2537338+05:00
+deployment.apps/backend 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+4         <none>
+5         <none>
+
+Warning: resource deployments/backend was previously managed with 'kubectl apply'. Rolling back will not update the kubectl.kubernetes.io/last-applied-configuration annotation, which may cause unexpected behavior on future 'kubectl apply' operations. Consider using 'kubectl apply' with your previous configuration file instead.
+deployment.apps/backend rolled back
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 out of 2 new replicas have been updated...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "backend" rollout to finish: 1 old replicas are pending termination...
+deployment "backend" successfully rolled out
+Active image:
+civicpulse-backend:rollout-test
+
+Pods after rollback:
+NAME                       READY   STATUS        RESTARTS   AGE     IP            NODE                       NOMINATED NODE   READINESS GATES
+backend-65545955b9-8rxws   1/1     Running       0          26s     10.244.0.39   civicpulse-control-plane   <none>           <none>
+backend-65545955b9-n4m9c   1/1     Running       0          47s     10.244.0.38   civicpulse-control-plane   <none>           <none>
+backend-b8d8d9784-97m6v    1/1     Terminating   0          4m25s   10.244.0.37   civicpulse-control-plane   <none>           <none>
+Rollback finished: 2026-09-28T16:22:09.8111721+05:00
