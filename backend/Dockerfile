@@ -1,9 +1,9 @@
-FROM python:3.12.8-slim-bookworm AS builder
+FROM python:3.12.14-slim-bookworm AS builder
 WORKDIR /build
 COPY requirements.txt ./
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12.8-slim-bookworm AS runtime
+FROM python:3.12.14-slim-bookworm AS runtime
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 RUN addgroup --system --gid 10001 civicpulse && adduser --system --uid 10001 --ingroup civicpulse civicpulse
