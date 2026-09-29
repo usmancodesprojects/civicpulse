@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     triage_cache_ttl_seconds: int = 86_400
     triage_retry_attempts: int = Field(default=2, ge=1, le=4)
     triage_retry_base_seconds: float = Field(default=0.1, ge=0.01, le=1)
+    triage_circuit_failures: int = Field(default=3, ge=1, le=20)
+    triage_circuit_window_seconds: int = Field(default=60, ge=1)
+    triage_circuit_cooldown_seconds: int = Field(default=30, ge=1)
     stats_cache_ttl_seconds: int = 30
 
 

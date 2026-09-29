@@ -116,6 +116,33 @@ def test_retries_are_bounded_before_fallback(redis_client, monkeypatch) -> None:
     assert 0 <= delays[1] <= 0.2
 
 
+def test_circuit_skips_failing_provider_then_recovers_after_cooldown(redis_client) -> None:
+    class RecoverableProvider:
+        name = "recoverable"
+        calls = 0
+        failing = True
+
+        def triage(self, text: str, location: str):
+            self.calls += 1
+            if self.failing:
+                raise ProviderError("invalid response")
+            return SimulatedTriage().triage(text, location)
+
+    provider = RecoverableProvider()
+    config = settings().model_copy(update={"triage_circuit_failures": 2})
+    service = TriageService(provider, redis_client, config)
+    for _ in range(3):
+        assert service.triage(uuid4(), "Water pipe is leaking badly", "Street 2").fallback
+    assert provider.calls == 2
+    assert redis_client.ttl("triage:circuit:recoverable:open") > 0
+
+    redis_client.delete("triage:circuit:recoverable:open")
+    provider.failing = False
+    decision = service.triage(uuid4(), "Water pipe is leaking badly", "Street 2")
+    assert decision.fallback is False
+    assert provider.calls == 3
+
+
 def test_content_hash_cache_avoids_second_provider_call(redis_client) -> None:
     provider = FailsOnce()
     provider.calls = 1
