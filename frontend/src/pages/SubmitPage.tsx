@@ -26,6 +26,10 @@ export function SubmitPage() {
       setError("Location must be between 3 and 200 characters.");
       return;
     }
+    if (contact.trim().length > 200) {
+      setError("Contact must be 200 characters or fewer.");
+      return;
+    }
     setLoading(true);
     try {
       setResult(await api.createComplaint({
@@ -67,7 +71,7 @@ export function SubmitPage() {
           </label>
           <label htmlFor="reporter-contact">
             Contact (optional)
-            <input id="reporter-contact" aria-label="Contact (optional)" value={contact} onChange={(event) => setContact(event.target.value)} />
+            <input id="reporter-contact" aria-label="Contact (optional)" value={contact} onChange={(event) => setContact(event.target.value)} maxLength={200} />
           </label>
           {error && <p role="alert" className="alert">{error}</p>}
           <button type="submit" disabled={loading}>
