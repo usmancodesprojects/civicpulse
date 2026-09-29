@@ -65,7 +65,7 @@ class TriageService:
             self.redis.delete(self._failure_key())
         except (ProviderError, RetryableProviderError) as exc:
             if not self.redis.exists(self._circuit_key()):
-                failures = self.redis.incr(self._failure_key())
+                failures = cast(int, self.redis.incr(self._failure_key()))
                 if failures == 1:
                     self.redis.expire(
                         self._failure_key(), self.settings.triage_circuit_window_seconds

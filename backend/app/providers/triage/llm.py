@@ -20,7 +20,10 @@ class LLMTriage:
             "model": self.settings.llm_model,
             "temperature": 0,
             "response_format": {"type": "json_object"},
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user},
+            ],
         }
         try:
             response = httpx.post(
