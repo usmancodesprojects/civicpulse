@@ -6,7 +6,7 @@ COPY tsconfig*.json vite.config.ts vitest.config.ts eslint.config.js index.html 
 COPY src ./src
 RUN npm run build
 
-FROM nginx:1.27.3-alpine3.20 AS runtime
+FROM nginx:1.31.6-alpine3.24 AS runtime
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY --from=builder /build/dist /usr/share/nginx/html
 RUN chown -R 101:101 /usr/share/nginx/html
