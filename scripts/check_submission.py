@@ -52,6 +52,13 @@ compose_path = ROOT / "compose.yaml"
 if compose_path.is_file() and "internal: true" not in compose_path.read_text(encoding="utf-8"):
     fail("internal Docker network is not isolated")
 
+conflict_path = ROOT / "docs/evidence/merge-conflict.md"
+if conflict_path.is_file():
+    conflict_evidence = conflict_path.read_text(encoding="utf-8")
+    for marker in ("<<<<<<<", "=======", ">>>>>>>", "672570f"):
+        if marker not in conflict_evidence:
+            fail(f"merge-conflict evidence is missing {marker!r}")
+
 if failures:
     print(f"\n{len(failures)} mechanical check(s) failed.")
     sys.exit(1)
