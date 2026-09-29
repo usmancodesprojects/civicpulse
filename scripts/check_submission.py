@@ -10,6 +10,7 @@ REQUIRED = [
     "k8s/base/backend.yaml", "k8s/base/postgres.yaml", "k8s/base/hpa.yaml", "k8s/base/vpa.yaml",
     ".github/workflows/ci.yml", ".github/workflows/cd.yml", ".github/workflows/release.yml",
     "docs/ENGINEERING-NOTES.md", "docs/RUNBOOK.md", "docs/AI-USAGE.md",
+    ".mailmap", "docs/evidence/README.md", "docs/evidence/merge-conflict.md",
 ]
 
 
