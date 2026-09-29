@@ -40,22 +40,41 @@ class TriageService:
         )
         cached = cast(str | None, self.redis.get(cache_key))
         if cached:
-            payload = json.loads(cached)
-            decision = TriageDecision(
-                result=TriageResult.model_validate(payload["result"]),
-                provider=payload["provider"],
-                latency_ms=0,
-                fallback=payload.get("fallback", False),
-            )
-            self._record(decision)
-            return decision
+            try:
+                payload = json.loads(cached)
+                decision = TriageDecision(
+                    result=TriageResult.model_validate(payload["result"]),
+                    provider=payload["provider"],
+                    latency_ms=0,
+                    fallback=payload.get("fallback", False),
+                )
+            except (KeyError, TypeError, ValueError):
+                logger.warning("triage_cache_invalid", extra={"complaint_id": str(complaint_id)})
+                self.redis.delete(cache_key)
+            else:
+                self._record(decision)
+                return decision
 
         started = time.perf_counter()
         fallback = False
         provider_name = self.provider.name
         try:
+            if self.redis.exists(self._circuit_key()):
+                raise ProviderError("triage provider circuit is open")
             result = self._with_retry(text, location)
+            self.redis.delete(self._failure_key())
         except (ProviderError, RetryableProviderError) as exc:
+            if not self.redis.exists(self._circuit_key()):
+                failures = cast(int, self.redis.incr(self._failure_key()))
+                if failures == 1:
+                    self.redis.expire(
+                        self._failure_key(), self.settings.triage_circuit_window_seconds
+                    )
+                if failures >= self.settings.triage_circuit_failures:
+                    self.redis.setex(
+                        self._circuit_key(), self.settings.triage_circuit_cooldown_seconds, "open"
+                    )
+                    self.redis.delete(self._failure_key())
             fallback = True
             provider_name = "rules:fallback"
             result = self.fallback.triage(text, location)
@@ -87,12 +106,22 @@ class TriageService:
         self._record(decision)
         return decision
 
+    def _failure_key(self) -> str:
+        return f"triage:circuit:{self.provider.name}:failures"
+
+    def _circuit_key(self) -> str:
+        return f"triage:circuit:{self.provider.name}:open"
+
     def _with_retry(self, text: str, location: str) -> TriageResult:
-        try:
-            return self.provider.triage(text, location)
-        except RetryableProviderError:
-            time.sleep(random.uniform(0.05, 0.15))
-            return self.provider.triage(text, location)
+        for attempt in range(self.settings.triage_retry_attempts):
+            try:
+                return self.provider.triage(text, location)
+            except RetryableProviderError:
+                if attempt + 1 == self.settings.triage_retry_attempts:
+                    raise
+                delay = min(self.settings.triage_retry_base_seconds * 2**attempt, 1.0)
+                time.sleep(random.uniform(0, delay))
+        raise AssertionError("retry loop has at least one attempt")
 
     def _record(self, decision: TriageDecision) -> None:
         outcome = ProviderOutcome(

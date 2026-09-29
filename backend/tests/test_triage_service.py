@@ -1,3 +1,4 @@
+import hashlib
 from uuid import uuid4
 
 import pytest
@@ -93,6 +94,56 @@ def test_retryable_error_is_retried_once(redis_client, monkeypatch) -> None:
     assert decision.fallback is False
 
 
+def test_retries_are_bounded_before_fallback(redis_client, monkeypatch) -> None:
+    class AlwaysTransient:
+        name = "transient"
+        calls = 0
+
+        def triage(self, text: str, location: str):
+            self.calls += 1
+            raise RetryableProviderError("upstream unavailable")
+
+    delays: list[float] = []
+    monkeypatch.setattr("app.services.triage.time.sleep", delays.append)
+    provider = AlwaysTransient()
+    config = settings().model_copy(update={"triage_retry_attempts": 3})
+    decision = TriageService(provider, redis_client, config).triage(
+        uuid4(), "Water pipe is leaking badly", "Street 2"
+    )
+    assert decision.fallback is True
+    assert provider.calls == 3
+    assert len(delays) == 2
+    assert 0 <= delays[0] <= 0.1
+    assert 0 <= delays[1] <= 0.2
+
+
+def test_circuit_skips_failing_provider_then_recovers_after_cooldown(redis_client) -> None:
+    class RecoverableProvider:
+        name = "recoverable"
+        calls = 0
+        failing = True
+
+        def triage(self, text: str, location: str):
+            self.calls += 1
+            if self.failing:
+                raise ProviderError("invalid response")
+            return SimulatedTriage().triage(text, location)
+
+    provider = RecoverableProvider()
+    config = settings().model_copy(update={"triage_circuit_failures": 2})
+    service = TriageService(provider, redis_client, config)
+    for _ in range(3):
+        assert service.triage(uuid4(), "Water pipe is leaking badly", "Street 2").fallback
+    assert provider.calls == 2
+    assert redis_client.ttl("triage:circuit:recoverable:open") > 0
+
+    redis_client.delete("triage:circuit:recoverable:open")
+    provider.failing = False
+    decision = service.triage(uuid4(), "Water pipe is leaking badly", "Street 2")
+    assert decision.fallback is False
+    assert provider.calls == 3
+
+
 def test_content_hash_cache_avoids_second_provider_call(redis_client) -> None:
     provider = FailsOnce()
     provider.calls = 1
@@ -102,6 +153,17 @@ def test_content_hash_cache_avoids_second_provider_call(redis_client) -> None:
     assert provider.calls == 2
     assert second.provider == first.provider
     assert second.latency_ms == 0
+
+
+def test_corrupt_cache_is_replaced_by_fresh_triage(redis_client) -> None:
+    text, location = "Garbage collection missed again", "Lane 3"
+    cache_key = "triage:" + hashlib.sha256(f"{text}|{location}".encode()).hexdigest()
+    redis_client.set(cache_key, "{broken json")
+    service = TriageService(SimulatedTriage(), redis_client, settings())
+    decision = service.triage(uuid4(), text, location)
+    assert decision.fallback is False
+    assert decision.result.category.value == "sanitation"
+    assert redis_client.get(cache_key) != "{broken json"
 
 
 def test_prompt_injection_is_still_classified_by_schema(redis_client) -> None:
