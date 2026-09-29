@@ -40,15 +40,20 @@ class TriageService:
         )
         cached = cast(str | None, self.redis.get(cache_key))
         if cached:
-            payload = json.loads(cached)
-            decision = TriageDecision(
-                result=TriageResult.model_validate(payload["result"]),
-                provider=payload["provider"],
-                latency_ms=0,
-                fallback=payload.get("fallback", False),
-            )
-            self._record(decision)
-            return decision
+            try:
+                payload = json.loads(cached)
+                decision = TriageDecision(
+                    result=TriageResult.model_validate(payload["result"]),
+                    provider=payload["provider"],
+                    latency_ms=0,
+                    fallback=payload.get("fallback", False),
+                )
+            except (KeyError, TypeError, ValueError):
+                logger.warning("triage_cache_invalid", extra={"complaint_id": str(complaint_id)})
+                self.redis.delete(cache_key)
+            else:
+                self._record(decision)
+                return decision
 
         started = time.perf_counter()
         fallback = False

@@ -1,3 +1,4 @@
+import hashlib
 from uuid import uuid4
 
 import pytest
@@ -152,6 +153,17 @@ def test_content_hash_cache_avoids_second_provider_call(redis_client) -> None:
     assert provider.calls == 2
     assert second.provider == first.provider
     assert second.latency_ms == 0
+
+
+def test_corrupt_cache_is_replaced_by_fresh_triage(redis_client) -> None:
+    text, location = "Garbage collection missed again", "Lane 3"
+    cache_key = "triage:" + hashlib.sha256(f"{text}|{location}".encode()).hexdigest()
+    redis_client.set(cache_key, "{broken json")
+    service = TriageService(SimulatedTriage(), redis_client, settings())
+    decision = service.triage(uuid4(), text, location)
+    assert decision.fallback is False
+    assert decision.result.category.value == "sanitation"
+    assert redis_client.get(cache_key) != "{broken json"
 
 
 def test_prompt_injection_is_still_classified_by_schema(redis_client) -> None:
