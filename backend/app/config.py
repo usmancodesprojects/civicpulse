@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     trust_proxy_headers: bool = False
     log_level: str = "INFO"
     triage_cache_ttl_seconds: int = 86_400
+    triage_retry_attempts: int = Field(default=2, ge=1, le=4)
+    triage_retry_base_seconds: float = Field(default=0.1, ge=0.01, le=1)
     stats_cache_ttl_seconds: int = 30
 
 

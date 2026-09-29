@@ -88,11 +88,15 @@ class TriageService:
         return decision
 
     def _with_retry(self, text: str, location: str) -> TriageResult:
-        try:
-            return self.provider.triage(text, location)
-        except RetryableProviderError:
-            time.sleep(random.uniform(0.05, 0.15))
-            return self.provider.triage(text, location)
+        for attempt in range(self.settings.triage_retry_attempts):
+            try:
+                return self.provider.triage(text, location)
+            except RetryableProviderError:
+                if attempt + 1 == self.settings.triage_retry_attempts:
+                    raise
+                delay = min(self.settings.triage_retry_base_seconds * 2**attempt, 1.0)
+                time.sleep(random.uniform(0, delay))
+        raise AssertionError("retry loop has at least one attempt")
 
     def _record(self, decision: TriageDecision) -> None:
         outcome = ProviderOutcome(

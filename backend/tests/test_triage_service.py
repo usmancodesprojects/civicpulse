@@ -93,6 +93,29 @@ def test_retryable_error_is_retried_once(redis_client, monkeypatch) -> None:
     assert decision.fallback is False
 
 
+def test_retries_are_bounded_before_fallback(redis_client, monkeypatch) -> None:
+    class AlwaysTransient:
+        name = "transient"
+        calls = 0
+
+        def triage(self, text: str, location: str):
+            self.calls += 1
+            raise RetryableProviderError("upstream unavailable")
+
+    delays: list[float] = []
+    monkeypatch.setattr("app.services.triage.time.sleep", delays.append)
+    provider = AlwaysTransient()
+    config = settings().model_copy(update={"triage_retry_attempts": 3})
+    decision = TriageService(provider, redis_client, config).triage(
+        uuid4(), "Water pipe is leaking badly", "Street 2"
+    )
+    assert decision.fallback is True
+    assert provider.calls == 3
+    assert len(delays) == 2
+    assert 0 <= delays[0] <= 0.1
+    assert 0 <= delays[1] <= 0.2
+
+
 def test_content_hash_cache_avoids_second_provider_call(redis_client) -> None:
     provider = FailsOnce()
     provider.calls = 1
