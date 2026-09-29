@@ -31,6 +31,17 @@ describe("CivicPulse", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects an overlong contact before submission", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    render(<App />);
+    fireEvent.change(screen.getByLabelText("What happened?"), { target: { value: complaint.text } });
+    fireEvent.change(screen.getByLabelText("Location"), { target: { value: complaint.location } });
+    fireEvent.change(screen.getByLabelText("Contact (optional)"), { target: { value: "x".repeat(201) } });
+    await userEvent.click(screen.getByRole("button", { name: "Submit complaint" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("200 characters or fewer");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("renders category, priority, summary, and provider after submission", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify(complaint), { status: 201, headers: { "Content-Type": "application/json" } }));
     render(<App />);
