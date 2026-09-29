@@ -8,7 +8,7 @@ First, a laptop may have any Python or Node version; the backend and frontend Do
 
 ## 2. CI/CD maturity ladder
 
-This repository is at continuous delivery: every PR is linted, typed, unit-tested, image-built, scanned, manifest-validated, and integration-tested; a merge to main automatically builds immutable images and deploys them to an ephemeral Kubernetes environment. Publishing is gated at `.github/workflows/cd.yml:32` and deployment at `.github/workflows/cd.yml:60`. It is not continuous deployment to a long-lived production environment because the target is deliberately ephemeral. The next rung is an environment promotion/GitOps controller, which would make reviewed Git desired state continuously reconciled and auditable.
+The intended CI/CD pipeline is continuous delivery: PRs are designed to be linted, typed, unit-tested, image-built, scanned, manifest-validated, and integration-tested; a merge to main is designed to build immutable images and deploy them to an ephemeral Kubernetes environment. A successful integrated run remains outstanding while the dependent branches are unmerged. Publishing is gated at `.github/workflows/cd.yml:32` and deployment at `.github/workflows/cd.yml:60`. It is not continuous deployment to a long-lived production environment because the target is deliberately ephemeral. The next rung is an environment promotion/GitOps controller, which would make reviewed Git desired state continuously reconciled and auditable.
 
 ## 3. Build once, deploy many
 
@@ -43,3 +43,4 @@ This was a genuine operational failure but did not last more than one hour. It t
 ## Build measurements
 
 Record actual values from the final machine; do not invent them. Use `docker images civicpulse-*`, `docker build --progress=plain`, and compare the full directory size with the tar stream selected by each `.dockerignore`. The acceptance check is that the final frontend image contains nginx static assets only - no Node binary, source, or `node_modules` - and remains below roughly 60 MB.
+
